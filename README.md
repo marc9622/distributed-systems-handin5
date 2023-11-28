@@ -4,7 +4,7 @@ To run the program, make an exe file
 
 ```go build -o program.exe src\program.go```
 
-Then run nodes with added ports. Example:
+Then run nodes with added ports. The first number is the node's port, and the following numbers are all of the other ports. Example:
 
 ```program.exe -node -port 1111 1111 2222```
 
