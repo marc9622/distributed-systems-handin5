@@ -17,18 +17,18 @@ type Node struct {
 }
 
 func (n *Node) Bid(_ context.Context, amount *pb.Amount) (*pb.Ack, error) {
+    //mutex.Lock()
     log.Printf(">>> Bid: %d\n", amount.Amount)
 
     if ended {
         return &pb.Ack{Accepted: false}, nil
     }
 
-    mutex.Lock()
     var isHigher = uint(amount.Amount) > highest
 
     // If the bidding amount is not the highest, then we can be sure the leader doesn't have a higher bid.
     if !isHigher {
-        mutex.Unlock()
+        //mutex.Unlock()
         log.Printf("<<< Bid: %d\n", amount.Amount)
         return &pb.Ack{Accepted: false}, nil
     }
@@ -37,7 +37,7 @@ func (n *Node) Bid(_ context.Context, amount *pb.Amount) (*pb.Ack, error) {
         findLeader()
         if isLeader {
             highest = uint(amount.Amount)
-            mutex.Unlock()
+            //mutex.Unlock()
             log.Printf("<<< Bid: %d\n", amount.Amount)
             return &pb.Ack{Accepted: true}, nil
         }
@@ -59,20 +59,20 @@ func (n *Node) Bid(_ context.Context, amount *pb.Amount) (*pb.Ack, error) {
             highest = uint(res.Amount);
         }
 
-        mutex.Unlock()
+        //mutex.Unlock()
         log.Printf("<<< Bid: %d\n", amount.Amount)
         return ack, nil
     }
 }
 
 func (n *Node) Result(_ context.Context, void *pb.Void) (*pb.Outcome, error) {
+    //mutex.Lock()
     log.Printf(">>> Result\n")
 
-    mutex.Lock()
     for {
         findLeader()
         if isLeader {
-            mutex.Unlock()
+            //mutex.Unlock()
             log.Printf("<<< Result\n")
             return &pb.Outcome{Amount: uint32(highest)}, nil
         }
@@ -84,22 +84,22 @@ func (n *Node) Result(_ context.Context, void *pb.Void) (*pb.Outcome, error) {
         }
 
         highest = uint(res.Amount)
-        mutex.Unlock()
+        //mutex.Unlock()
         log.Printf("<<< Result\n")
         return res, nil
     }
 }
 
 func (n *Node) End(_ context.Context, void *pb.Void) (*pb.Void, error) {
+    //mutex.Lock()
     log.Printf(">>> End\n")
 
-    mutex.Lock()
     for {
         findLeader()
         if isLeader {
             ended = true
             log.Printf("<<< End\n")
-            mutex.Unlock()
+            //mutex.Unlock()
             return &pb.Void{}, nil
         }
 
@@ -111,29 +111,31 @@ func (n *Node) End(_ context.Context, void *pb.Void) (*pb.Void, error) {
 
         ended = true
         log.Printf("<<< End\n")
-        mutex.Unlock()
+        //mutex.Unlock()
         return void, nil
     }
 }
 
 func (n *Node) Election(_ context.Context, void *pb.Void) (*pb.Void, error) {
+    //mutex.Lock()
     log.Printf(">>> Election\n")
     findLeader()
     log.Printf("<<< Election\n")
+    //mutex.Unlock()
     return &pb.Void{}, nil
 }
 
 func (n *Node) Leader(_ context.Context, id *pb.Id) (*pb.Void, error) {
+    //mutex.Lock()
     log.Printf(">>> Leader: %d\n", id.Id)
 
-    mutex.Lock()
     isLeader = false
     closeLeader()
 
     var address = fmt.Sprintf("localhost:%d", ports[id.Id])
     var connAttempt, connErr = grpc.Dial(address, opt)
     if connErr != nil {
-        mutex.Unlock()
+        //mutex.Unlock()
         log.Printf("<<< Leader: %d\n", id.Id)
         return &pb.Void{}, nil
     }
@@ -141,7 +143,7 @@ func (n *Node) Leader(_ context.Context, id *pb.Id) (*pb.Void, error) {
 
     leader = pb.NewAuctionClient(conn)
 
-    mutex.Unlock()
+    //mutex.Unlock()
     log.Printf("<<< Leader: %d\n", id.Id)
     return &pb.Void{}, nil
 }
@@ -169,7 +171,9 @@ func closeLeader() {
 }
 
 func findLeader() {
+    log.Printf(">>> Find leader\n")
     if isLeader || leader != nil {
+        log.Printf("<<< Find leader\n")
         return
     }
 
@@ -178,6 +182,7 @@ func findLeader() {
     // If this has the highest port...
     if ports[count-1] == ports[id] {
         becomeLeader()
+        log.Printf("<<< Find leader\n")
         return
     }
 
@@ -203,6 +208,7 @@ func findLeader() {
         becomeLeader()
     }
 
+    log.Printf("<<< Find leader\n")
     return
 }
 
