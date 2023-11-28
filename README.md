@@ -16,10 +16,17 @@ And then run a client
 ```program.exe 1111 2222```
 
 From there on the client can run 
-
+```
   - bid int
+
     Bid a number
+
   - result
+
     Gets the highest bid
+
   - end
+
     Ends the program
+
+```
