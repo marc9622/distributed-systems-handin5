@@ -5,9 +5,20 @@ option go_package = "github.com/marc9622/distributed-systems-handin5/proto";
 package proto;
 
 service Auction {
+    // Makes a bid
     rpc Bid (Amount) returns (Ack);
+
+    // Gets the highest bid
     rpc Result (Void) returns (Outcome);
+
+    // Ends the auction
     rpc End (Void) returns (Void);
+
+    // Calls for election of leader
+    rpc Election (Void) returns (Void);
+
+    // Declares the leader
+    rpc Leader (Id) returns (Void);
 }
 
 message Amount {
@@ -15,11 +26,15 @@ message Amount {
 }
 
 message Ack {
-    bool ack = 1;
+    bool acknowledged = 1;
 }
 
 message Outcome {
     uint32 amount = 1;
+}
+
+message Id {
+    uint32 address = 1;
 }
 
 message Void {}
