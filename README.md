@@ -30,3 +30,4 @@ From there on the client can run
     Ends the program
 
 ```
+The logs can be found in the log folder
