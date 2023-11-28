@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option go_package = "github.com/marc9622/distributed-systems-handin5/proto";
+
+package proto;
+
+service Auction {
+    rpc Bid (Amount) returns (Ack);
+    rpc Result (Void) returns (Outcome);
+    rpc End (Void) returns (Void);
+}
+
+message Amount {
+    uint32 amount = 1;
+}
+
+message Ack {
+    bool ack = 1;
+}
+
+message Outcome {
+    uint32 amount = 1;
+}
+
+message Void {}
+
