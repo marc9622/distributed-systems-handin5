@@ -26,7 +26,7 @@ message Amount {
 }
 
 message Ack {
-    bool acknowledged = 1;
+    bool accepted = 1;
 }
 
 message Outcome {
@@ -34,7 +34,7 @@ message Outcome {
 }
 
 message Id {
-    uint32 address = 1;
+    uint32 id = 1;
 }
 
 message Void {}

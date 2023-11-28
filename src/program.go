@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"time"
 
 	node "github.com/marc9622/distributed-systems-handin5/src/node"
@@ -22,6 +23,12 @@ func main() {
     var isNode = flag.Bool("node", false, "Whether makes this a node instead of client.")
     flag.Parse()
 
+    if *isNode && *thisPort == 0 {
+        fmt.Print("Port must be specified with -port\n")
+        os.Exit(1)
+    }
+
+    // Setup logs
     if *logFile != "" {
         var file, fileErr = os.OpenFile(*logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
         if fileErr != nil {
@@ -30,80 +37,84 @@ func main() {
         log.SetOutput(file)
     }
 
-    if *thisPort == 0 {
-        fmt.Print("Port must be specified with -port\n")
-        os.Exit(1)
-    }
+    /* Setup slice of ports */ {
+        var portStrs = flag.Args();
+        for _, portStr := range portStrs {
+            var port uint
 
-    var portStrs = flag.Args();
-    for _, portStr := range portStrs {
-        var port uint
-
-        var _, err = fmt.Sscanf(portStr, "%d", &port)
-        if err != nil {
-            fmt.Printf("Failed to parse port %s: %v\n", portStr, err)
-            os.Exit(1)
-        }
-        if *thisPort != port {
+            var _, err = fmt.Sscanf(portStr, "%d", &port)
+            if err != nil {
+                log.Printf("Failed to parse port %s: %v\n", portStr, err)
+                os.Exit(1)
+            }
+            if *isNode && *thisPort == port {
+                continue
+            }
             ports = append(ports, port)
+            log.Printf("Added port %d\n", port)
         }
-    }
-    if len(ports) <= 0 {
-        log.Panicf("No nodes to connect to")
+        if len(ports) <= 0 {
+            log.Panicf("No nodes to connect to")
+        }
     }
 
     if *isNode {
-        node.Spawn(*thisPort, ports, *seconds)
+        ports = append(ports, *thisPort)
+        sort.Slice(ports, func(i, j int) bool { return ports[i] < ports[j] })
+        for i, port := range ports {
+            if port == *thisPort {
+                node.Spawn(uint(i), ports, *seconds)
+            }
+        }
         for {}
-    }
-
-    if *seconds != 0 {
-        go func() {
-            time.Sleep(time.Duration(*seconds) * time.Second)
-            sendEnd()
-        }()
-    }
-
-    var scanner = bufio.NewScanner(os.Stdin)
-    for {
-        log.Printf("Waiting for input");
-        scanner.Scan()
-        var readErr = scanner.Err()
-        if readErr != nil {
-            log.Panicf("Failed to read input: %s", readErr)
+    } else {
+        if *seconds != 0 {
+            go func() {
+                time.Sleep(time.Duration(*seconds) * time.Second)
+                sendEnd()
+            }()
         }
 
-        var cmd = scanner.Text()
-        if cmd == "bid" {
+        var scanner = bufio.NewScanner(os.Stdin)
+        scanner.Split(bufio.ScanWords)
+        for {
+            log.Printf("Waiting for input");
             scanner.Scan()
             var readErr = scanner.Err()
             if readErr != nil {
                 log.Panicf("Failed to read input: %s", readErr)
             }
 
-            var amountStr = scanner.Text()
-            var amount uint
-            var _, parseErr = fmt.Sscanf(amountStr, "%d", &amount)
-            if parseErr != nil {
-                log.Panicf("Failed to parse bidding amount %s: %v", amountStr, parseErr)
-            }
+            var cmd = scanner.Text()
+            if cmd == "bid" {
+                scanner.Scan()
+                var readErr = scanner.Err()
+                if readErr != nil {
+                    log.Panicf("Failed to read input: %s", readErr)
+                }
 
-            var success = sendBid(amount)
-            if success {
-                log.Printf("Bid %d accepted\n", amount)
+                var amountStr = scanner.Text()
+                var amount uint
+                var _, parseErr = fmt.Sscanf(amountStr, "%d", &amount)
+                if parseErr != nil {
+                    log.Panicf("Failed to parse bidding amount %s: %v", amountStr, parseErr)
+                }
+
+                var success = sendBid(amount)
+                if success {
+                    log.Printf("Bid %d accepted\n", amount)
+                } else {
+                    log.Printf("Bid %d rejected\n", amount)
+                }
+            } else if cmd == "result" {
+                var outcome = sendResult()
+                log.Printf("Result: %d\n", outcome)
+            } else if cmd == "end" {
+                sendEnd()
+                log.Printf("Auction ended\n")
             } else {
-                log.Printf("Bid %d rejected\n", amount)
+                log.Printf("Unknown command: %s\n", cmd)
             }
-        }
-
-        if cmd == "result" {
-            var outcome = sendResult()
-            log.Printf("Result: %d\n", outcome)
-        }
-
-        if cmd == "end" {
-            sendEnd()
-            log.Printf("Auction ended\n")
         }
     }
 }
@@ -123,7 +134,7 @@ func sendBid(amount uint) bool {
             continue
         }
 
-        return ack.Ack
+        return ack.Accepted
     }
 }
 
@@ -136,6 +147,7 @@ func sendResult() uint {
             continue
         }
 
+        log.Printf("Outcome: %v\n", outcome)
         return uint(outcome.Amount)
     }
 }
@@ -163,10 +175,12 @@ func findConnection() {
         return
     }
 
-    for port := range ports {
-        var connAttempt, connErr = grpc.Dial(fmt.Sprintf("localhost:%d", port))
+    for _, port := range ports {
+        var address = fmt.Sprintf("localhost:%d", port)
+        log.Printf("Connecting to %s\n", address)
+        var connAttempt, connErr = grpc.Dial(address, opt)
         if connErr != nil {
-            continue
+            log.Printf("Failed to connect to %s: %v\n", address, connErr)
         }
         conn = connAttempt
         client = pb.NewAuctionClient(conn)
