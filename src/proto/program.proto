@@ -19,6 +19,9 @@ service Auction {
 
     // Declares the leader
     rpc Leader (Id) returns (Void);
+
+    // Update the bid
+    rpc Update (Amount) returns (Void);
 }
 
 message Amount {

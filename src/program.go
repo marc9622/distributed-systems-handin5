@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"sort"
 	"time"
@@ -147,7 +148,6 @@ func sendResult() uint {
             continue
         }
 
-        log.Printf("Outcome: %v\n", outcome)
         return uint(outcome.Amount)
     }
 }
@@ -175,15 +175,22 @@ func findConnection() {
         return
     }
 
-    for _, port := range ports {
+    for {
+        var port = ports[rand.Intn(len(ports))]
         var address = fmt.Sprintf("localhost:%d", port)
         log.Printf("Connecting to %s\n", address)
         var connAttempt, connErr = grpc.Dial(address, opt)
         if connErr != nil {
-            log.Printf("Failed to connect to %s: %v\n", address, connErr)
+            //log.Printf("Failed to connect to %s: %v\n", address, connErr)
         }
         conn = connAttempt
         client = pb.NewAuctionClient(conn)
+        var _, resErr = client.Result(ctx, &pb.Void{})
+        if resErr != nil {
+            //log.Printf("Failed to connect to %s: %v\n", address, resErr)
+            closeConnection()
+            continue
+        }
         break
     }
     
